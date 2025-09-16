@@ -11,15 +11,10 @@
 #                       OFFICIAL SCRIPT                           
 # ===============================================================
 
-# Ask for domain and admin password at the start
-read -rp "Enter your domain for Pterodactyl Panel: " PANEL_DOMAIN
-read -rsp "Enter admin password for Pterodactyl (username=admin): " ADMIN_PASS
-echo ""
-
-ADMIN_USER="admin"
-ADMIN_EMAIL="admin@seednodes.fun"
 SYSTEM_EMAIL="support@seednodes.fun"
 TIMEZONE="Asia/Karachi"
+ADMIN_USER="admin"
+ADMIN_EMAIL="admin@seednodes.fun"
 
 # ================= MENU ====================
 echo "================================================================="
@@ -67,6 +62,7 @@ enable_ports() {
 }
 
 install_ssl() {
+    read -rp "Enter domain for SSL: " PANEL_DOMAIN
     apt update
     apt install -y certbot python3-certbot-nginx
     certbot certonly --nginx -d "$PANEL_DOMAIN" --non-interactive --agree-tos -m "$SYSTEM_EMAIL"
@@ -74,6 +70,10 @@ install_ssl() {
 }
 
 install_panel() {
+    read -rp "Enter domain for Pterodactyl Panel: " PANEL_DOMAIN
+    read -rsp "Enter admin password for Panel: " ADMIN_PASS
+    echo ""
+
     apt update
     apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
     add-apt-repository -y ppa:ondrej/php
