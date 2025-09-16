@@ -190,7 +190,7 @@ server {
 }
 EOL
 
-    ln -s /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/
+    ln -s /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf
     nginx -t && systemctl restart nginx
 
     echo "========================================="
