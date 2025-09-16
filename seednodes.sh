@@ -118,6 +118,8 @@ MYSQL_SCRIPT
     # Create admin user
     php artisan p:user:make --email="$ADMIN_EMAIL" --username="$ADMIN_USER" --name="Admin" --password="$ADMIN_PASS" --admin=1
 
+    # Remove old nginx
+    rm /etc/nginx/sites-enabled/default
     # Setup nginx
     cat > /etc/nginx/sites-available/pterodactyl.conf <<EOL
 server {
