@@ -11,6 +11,14 @@
 #                       OFFICIAL SCRIPT                           
 # ===============================================================
 
+# ===== Colors =====
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
 SYSTEM_EMAIL="support@seednodes.fun"
 TIMEZONE="Asia/Karachi"
 ADMIN_USER="admin"
@@ -18,29 +26,30 @@ ADMIN_EMAIL="admin@seednodes.fun"
 
 # ================= MENU ====================
 clear
-echo "================================================================="
-echo "   _____ ______ ______ _____    _   _  ____  _____  ______  _____ "
-echo "  / ____|  ____|  ____|  __ \  | \ | |/ __ \|  __ \|  ____|/ ____|"
-echo " | (___ | |__  | |__  | |  | | |  \| | |  | | |  | | |__  | (___  "
-echo "  \___ \|  __| |  __| | |  | | | . \` | |  | | |  | |  __|  \___ \ "
-echo "  ____) | |____| |____| |__| | | |\  | |__| | |__| | |____ ____) |"
-echo " |_____/|______|______|_____/  |_| \_|\____/|_____/|______|_____/ "
-echo "================================================================="
-echo "                      OFFICIAL SCRIPT"
-echo "================================================================="
+clear
+echo "${BLUE}================================================================="
+echo "${CYAN}   _____ ______ ______ _____    _   _  ____  _____  ______  _____ "
+echo "${CYAN}  / ____|  ____|  ____|  __ \  | \ | |/ __ \|  __ \|  ____|/ ____|"
+echo "${CYAN} | (___ | |__  | |__  | |  | | |  \| | |  | | |  | | |__  | (___  "
+echo "${CYAN}  \___ \|  __| |  __| | |  | | | . \` | |  | | |  | |  __|  \___ \ "
+echo "${CYAN}  ____) | |____| |____| |__| | | |\  | |__| | |__| | |____ ____) |"
+echo "${CYAN} |_____/|______|______|_____/  |_| \_|\____/|_____/|______|_____/ "
+echo "${BLUE}================================================================="
+echo -e "${BLUE}=================================================================${NC}"
+echo -e "${CYAN}   OFFICIAL SEEDNODES INSTALL SCRIPT${NC}"
+echo -e "${BLUE}=================================================================${NC}"
 echo ""
-echo ""
-echo "1) Enable Ports (UFW Firewall)"
-echo "2) Install SSL Certificates (Certbot)"
-echo "3) Install Pterodactyl Panel"
-echo "4) Install Wings"
-echo "5) Install Both Panel + Wings"
-echo "6) Uninstall Pterodactyl"
-echo "7) Uninstall Wings"
-echo "8) Uninstall Both"
-echo "9) Wipe Wings Data"
-echo "10) Exit"
-echo "============================================"
+echo -e "${YELLOW}1) Enable Ports (UFW Firewall)${NC}"
+echo -e "${YELLOW}2) Install SSL Certificates (Certbot)${NC}"
+echo -e "${YELLOW}3) Install Pterodactyl Panel${NC}"
+echo -e "${YELLOW}4) Install Wings${NC}"
+echo -e "${YELLOW}5) Install Both Panel + Wings${NC}"
+echo -e "${RED}6) Uninstall Pterodactyl${NC}"
+echo -e "${RED}7) Uninstall Wings${NC}"
+echo -e "${RED}8) Uninstall Both${NC}"
+echo -e "${RED}9) Wipe Wings Data${NC}"
+echo -e "${GREEN}10) Exit${NC}"
+echo -e "${BLUE}=================================================================${NC}"
 read -rp "Choose an option [1-10]: " OPTION
 
 # ============ FUNCTIONS ===============
@@ -59,7 +68,7 @@ enable_ports() {
     ufw allow 25565:25590/tcp
     ufw allow 25565:25590/udp
     ufw --force enable
-    echo "✅ Firewall ports enabled."
+    echo -e "${GREEN}✅ Firewall ports enabled.${NC}"
 }
 
 install_ssl() {
@@ -67,7 +76,7 @@ install_ssl() {
     apt update
     apt install -y certbot python3-certbot-nginx
     certbot certonly --nginx -d "$PANEL_DOMAIN" --non-interactive --agree-tos -m "$SYSTEM_EMAIL"
-    echo "✅ SSL Certificate installed for $PANEL_DOMAIN"
+    echo -e "${GREEN}✅ SSL Certificate installed for $PANEL_DOMAIN${NC}"
 }
 
 install_panel() {
@@ -77,15 +86,12 @@ install_panel() {
 
     apt update
     apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
-    add-apt-repository -y ppa:ondrej/php
+    LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
+    curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
     apt update
-    apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,curl,common,zip}
-    apt -y install mariadb-server mariadb-client redis-server nginx tar unzip git
-    curl -sL https://deb.nodesource.com/setup_20.x | bash -
-    apt -y install nodejs
-    curl -sS https://getcomposer.org/installer | php
-    mv composer.phar /usr/local/bin/composer
-
+    apt -y install php8.3 php8.3-{common,cli,gd,mysql,mbstring,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server
+    curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
     # Setup Database
     DB_PASS=$(openssl rand -base64 16)
     mysql -u root <<MYSQL_SCRIPT
@@ -118,19 +124,17 @@ MYSQL_SCRIPT
     # Create admin user
     php artisan p:user:make --email="$ADMIN_EMAIL" --username="$ADMIN_USER" --name="Admin" --password="$ADMIN_PASS" --admin=1
 
-    # Remove old nginx
+    # Remove old nginx default
     rm /etc/nginx/sites-enabled/default
     # Setup nginx
     cat > /etc/nginx/sites-available/pterodactyl.conf <<EOL
 server {
-    # Replace the example <domain> with your domain name or IP address
     listen 80;
     server_name $PANEL_DOMAIN;
-    return 301 https://$server_name$request_uri;
+    return 301 https://\$server_name\$request_uri;
 }
 
 server {
-    # Replace the example <domain> with your domain name or IP address
     listen 443 ssl http2;
     server_name $PANEL_DOMAIN;
 
@@ -140,13 +144,11 @@ server {
     access_log /var/log/nginx/pterodactyl.app-access.log;
     error_log  /var/log/nginx/pterodactyl.app-error.log error;
 
-    # allow larger file uploads and longer script runtimes
     client_max_body_size 100m;
     client_body_timeout 120s;
 
     sendfile off;
 
-    # SSL Configuration - Replace the example <domain> with your domain
     ssl_certificate /etc/letsencrypt/live/$PANEL_DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$PANEL_DOMAIN/privkey.pem;
     ssl_session_cache shared:SSL:10m;
@@ -154,8 +156,6 @@ server {
     ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
     ssl_prefer_server_ciphers on;
 
-    # See https://hstspreload.org/ before uncommenting the line below.
-    # add_header Strict-Transport-Security "max-age=15768000; preload;";
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
     add_header X-Robots-Tag none;
@@ -164,16 +164,16 @@ server {
     add_header Referrer-Policy same-origin;
 
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
-    location ~ \.php$ {
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+    location ~ \.php\$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)\$;
+        fastcgi_pass unix:/run/php/php8.1-fpm.sock;
         fastcgi_index index.php;
         include fastcgi_params;
         fastcgi_param PHP_VALUE "upload_max_filesize = 100M \n post_max_size=100M";
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_param HTTP_PROXY "";
         fastcgi_intercept_errors off;
         fastcgi_buffer_size 16k;
@@ -193,13 +193,13 @@ EOL
     ln -s /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf
     nginx -t && systemctl restart nginx
 
-    echo "========================================="
-    echo "✅ Pterodactyl Panel Installed"
-    echo "Domain   : https://$PANEL_DOMAIN"
-    echo "Admin    : $ADMIN_USER"
-    echo "Email    : $ADMIN_EMAIL"
-    echo "Password : $ADMIN_PASS"
-    echo "========================================="
+    echo -e "${GREEN}=========================================${NC}"
+    echo -e "${GREEN}✅ Pterodactyl Panel Installed${NC}"
+    echo -e "Domain   : https://$PANEL_DOMAIN"
+    echo -e "Admin    : $ADMIN_USER"
+    echo -e "Email    : $ADMIN_EMAIL"
+    echo -e "Password : $ADMIN_PASS"
+    echo -e "${GREEN}=========================================${NC}"
 }
 
 install_wings() {
@@ -208,7 +208,7 @@ install_wings() {
     mkdir -p /etc/pterodactyl
     curl -L https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_amd64 -o /usr/local/bin/wings
     chmod u+x /usr/local/bin/wings
-    echo "✅ Wings installed."
+    echo -e "${GREEN}✅ Wings installed.${NC}"
 }
 
 # ============= OPTIONS ==================
@@ -218,10 +218,10 @@ case $OPTION in
     3) install_panel ;;
     4) install_wings ;;
     5) install_panel && install_wings ;;
-    6) rm -rf /var/www/pterodactyl /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf ;;
-    7) rm -rf /etc/pterodactyl /usr/local/bin/wings ;;
-    8) rm -rf /var/www/pterodactyl /etc/pterodactyl /usr/local/bin/wings ;;
-    9) rm -rf /var/lib/docker ;;
-    10) exit 0 ;;
-    *) echo "❌ Invalid option" ;;
+    6) rm -rf /var/www/pterodactyl /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf && echo -e "${RED}❌ Pterodactyl removed${NC}" ;;
+    7) rm -rf /etc/pterodactyl /usr/local/bin/wings && echo -e "${RED}❌ Wings removed${NC}" ;;
+    8) rm -rf /var/www/pterodactyl /etc/pterodactyl /usr/local/bin/wings && echo -e "${RED}❌ Panel + Wings removed${NC}" ;;
+    9) rm -rf /var/lib/docker && echo -e "${RED}❌ Wings data wiped${NC}" ;;
+    10) echo -e "${CYAN}Exiting...${NC}" ; exit 0 ;;
+    *) echo -e "${RED}❌ Invalid option${NC}" ;;
 esac
