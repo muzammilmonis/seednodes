@@ -12,11 +12,12 @@
 # ===============================================================
 
 # ===== Colors =====
-RED='\033[0;31m'
-GREEN='\033[0;32m'
+RED='\033[1;31m'
+GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
+BLUE='\033[1;34m'
+CYAN='\033[1;36m'
+PURPLE='\033[1;35m'
 NC='\033[0m' # No Color
 
 SYSTEM_EMAIL="support@seednodes.fun"
@@ -91,6 +92,8 @@ install_panel() {
     echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
     apt update
     apt -y install php8.3 php8.3-{common,cli,gd,mysql,mbstring,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server
+    systemctl enable --now php8.3-fpm
+    systemctl enable --now mariadb
     curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
     # Setup Database
     DB_PASS=$(openssl rand -base64 16)
@@ -113,7 +116,7 @@ APP_THEME=pterodactyl
 APP_TIMEZONE=$TIMEZONE
 APP_URL=https://$PANEL_DOMAIN
 APP_LOCALE=en
-APP_ENVIRONMENT_ONLY=true
+APP_ENVIRONMENT_ONLY=false
 
 LOG_CHANNEL=daily
 LOG_DEPRECATIONS_CHANNEL=null
@@ -163,7 +166,14 @@ EOL
     chown -R www-data:www-data /var/www/pterodactyl/*
 
     # Create admin user
-    php artisan p:user:make --email="$ADMIN_EMAIL" --username="$ADMIN_USER" --name="Admin" --password="$ADMIN_PASS" --admin=1
+    php artisan p:user:make <<EOF
+yes
+$ADMIN_EMAIL
+$ADMIN_USER
+Admin
+seednodes
+$ADMIN_PASS
+EOF
 
     # Remove old nginx default
     rm /etc/nginx/sites-enabled/default
@@ -235,7 +245,7 @@ server {
 
     location ~ \.php\$ {
         fastcgi_split_path_info ^(.+\.php)(/.+)\$;
-        fastcgi_pass unix:/run/php/php8.1-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
         fastcgi_index index.php;
         include fastcgi_params;
         fastcgi_param PHP_VALUE "upload_max_filesize = 100M \n post_max_size=100M";
@@ -287,9 +297,39 @@ case $OPTION in
     3) install_panel ;;
     4) install_wings ;;
     5) install_panel && install_wings ;;
-    6) rm -rf /var/www/pterodactyl /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf && echo -e "${RED}❌ Pterodactyl removed${NC}" ;;
-    7) rm -rf /etc/pterodactyl /usr/local/bin/wings && echo -e "${RED}❌ Wings removed${NC}" ;;
-    8) rm -rf /var/www/pterodactyl /etc/pterodactyl /usr/local/bin/wings && echo -e "${RED}❌ Panel + Wings removed${NC}" ;;
+    6)
+        systemctl stop pteroq.service
+        systemctl disable pteroq.service
+        rm /etc/systemd/system/pteroq.service
+        systemctl daemon-reload
+        systemctl start mariadb
+        mysql -u root -e "DROP DATABASE IF EXISTS panel; DROP USER IF EXISTS 'pterodactyl'@'127.0.0.1'; FLUSH PRIVILEGES;"
+        systemctl stop mariadb
+        systemctl restart nginx
+        apt-get remove --purge -y php8.3 php8.3-* mariadb-server nginx redis-server
+        rm -rf /var/www/pterodactyl /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf
+        echo -e "${RED}❌ Pterodactyl completely removed${NC}"
+        ;;
+    7) 
+        systemctl stop wings
+        systemctl disable wings
+        rm /usr/local/bin/wings
+        rm -rf /etc/pterodactyl
+        echo -e "${RED}❌ Wings completely removed${NC}"
+        ;;
+    8) 
+        systemctl stop pteroq.service
+        systemctl disable pteroq.service
+        rm /etc/systemd/system/pteroq.service
+        systemctl stop wings
+        systemctl disable wings
+        rm /usr/local/bin/wings
+        rm -rf /var/www/pterodactyl /etc/pterodactyl /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf
+        systemctl daemon-reload
+        systemctl restart nginx
+        apt-get remove --purge -y php8.3 php8.3-* mariadb-server nginx redis-server
+        echo -e "${RED}❌ Panel + Wings completely removed${NC}"
+        ;;
     9) rm -rf /var/lib/docker && echo -e "${RED}❌ Wings data wiped${NC}" ;;
     10) echo -e "${CYAN}Exiting...${NC}" ; exit 0 ;;
     *) echo -e "${RED}❌ Invalid option${NC}" ;;
