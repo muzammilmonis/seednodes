@@ -104,14 +104,8 @@ MYSQL_SCRIPT
     # Setup Panel
     mkdir -p /var/www/pterodactyl
     cd /var/www/pterodactyl || exit
-    curl -Lo panel.tar.gz https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz
-    tar -xzvf panel.tar.gz
-    chmod -R 755 storage/* bootstrap/cache/
-    COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
-    php artisan key:generate --force
 
-    APP_KEY=$(openssl rand -base64 16)
-    cat > /var/www/pterodactyl/.env <<EOL
+        cat > /var/www/pterodactyl/.env <<EOL
 APP_ENV=production
 APP_DEBUG=false
 APP_KEY=$APP_KEY
@@ -157,6 +151,12 @@ MAIL_FROM_NAME="Pterodactyl Panel"
 # @see: https://github.com/pterodactyl/panel/pull/3110
 # MAIL_EHLO_DOMAIN=panel.example.com
 EOL
+    
+    curl -Lo panel.tar.gz https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz
+    tar -xzvf panel.tar.gz
+    chmod -R 755 storage/* bootstrap/cache/
+    COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
+    php artisan key:generate --force
 
     php artisan migrate --seed --force
 
