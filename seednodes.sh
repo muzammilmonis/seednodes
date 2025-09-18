@@ -107,19 +107,60 @@ MYSQL_SCRIPT
     curl -Lo panel.tar.gz https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz
     tar -xzvf panel.tar.gz
     chmod -R 755 storage/* bootstrap/cache/
-    cp .env.example .env
-    composer install --no-dev --optimize-autoloader
+    COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
     php artisan key:generate --force
 
-    # Auto setup environment file
-    sed -i "s|APP_URL=.*|APP_URL=https://$PANEL_DOMAIN|" .env
-    sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASS|" .env
-    sed -i "s|DB_DATABASE=.*|DB_DATABASE=panel|" .env
-    sed -i "s|DB_USERNAME=.*|DB_USERNAME=pterodactyl|" .env
-    sed -i "s|APP_TIMEZONE=.*|APP_TIMEZONE=$TIMEZONE|" .env
-    sed -i "s|MAIL_FROM_ADDRESS=.*|MAIL_FROM_ADDRESS=$SYSTEM_EMAIL|" .env
+    APP_KEY=$(openssl rand -base64 16)
+    cat > /var/www/pterodactyl/.env <<EOL
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=$APP_KEY
+APP_THEME=pterodactyl
+APP_TIMEZONE=$TIMEZONE
+APP_URL=https://$PANEL_DOMAIN
+APP_LOCALE=en
+APP_ENVIRONMENT_ONLY=true
+
+LOG_CHANNEL=daily
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=panel
+DB_USERNAME=pterodactyl
+DB_PASSWORD=$DB_PASS
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+CACHE_DRIVER=file
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=file
+
+HASHIDS_SALT=
+HASHIDS_LENGTH=8
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.example.com
+MAIL_PORT=25
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=$SYSTEM_EMAIL
+MAIL_FROM_NAME="Pterodactyl Panel"
+# You should set this to your domain to prevent it defaulting to 'localhost', causing
+# mail servers such as Gmail to reject your mail.
+#
+# @see: https://github.com/pterodactyl/panel/pull/3110
+# MAIL_EHLO_DOMAIN=panel.example.com
+EOL
 
     php artisan migrate --seed --force
+
+    chown -R www-data:www-data /var/www/pterodactyl/*
 
     # Create admin user
     php artisan p:user:make --email="$ADMIN_EMAIL" --username="$ADMIN_USER" --name="Admin" --password="$ADMIN_PASS" --admin=1
